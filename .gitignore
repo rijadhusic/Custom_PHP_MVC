@@ -1,0 +1,8 @@
+/vendor/*
+/config/app.php
+
+/logs/*
+!/logs/empty
+
+/app/Config/core.php
+/app/Config/database.php
