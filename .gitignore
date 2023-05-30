@@ -1,5 +1,5 @@
 /vendor/*
-/config/app.php
+/config/config.php
 
 /logs/*
 !/logs/empty
