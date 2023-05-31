@@ -22,7 +22,7 @@ class Database {
         $dsn = 'mysql:host='.$this->host.';dbname='.$this->dbname;
         $options = [
             PDO::ATTR_PERSISTENT => true,
-            PDO::ATTR_ERRMODE => $errorMode
+            PDO::ATTR_ERRMODE => $this->errorMode
         ];
         try {
             $this->dbh = new PDO($dsn, $this->user, $this->password, $options);
