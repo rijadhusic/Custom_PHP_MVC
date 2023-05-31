@@ -26,8 +26,9 @@ To get started with the framework, follow these steps:
 2. Configure your web server to point to the project root directory.
 3. Update the necessary configurations in the `app/config` files according to your environment and preferences.
 4. Create a new MySQL database and update the database configuration in `app/config/config.php`.
-5. Start building your application by creating controllers, models, and views in their respective directories.
-6. Access your application by visiting the configured domain or localhost in your web browser.
+5. Update the base URL in the .htaccess file located in the public directory. Open the .htaccess file and modify the RewriteBase directive to match the base URL of your application. For example, if your application is accessible at http://localhost/rijadmvc/public, set RewriteBase /rijadmvc/public.
+6. Start building your application by creating controllers, models, and views in their respective directories.
+7. Access your application by visiting the configured domain or localhost in your web browser.
 
 ## Dependencies
 
@@ -43,9 +44,6 @@ To use the `Database` class, you can create an instance of it and then call its 
 
 ```php
 <?php
-// Include the necessary files
-require_once 'config.php';
-require_once 'Database.php';
 
 // Create a new instance of the Database class
 $db = new Database();
