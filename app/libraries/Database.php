@@ -1,151 +1,103 @@
 <?php
-/*
- * PDO Database Class
- * Connect to database
- * Create prepared statements
- * Bind values
- * Return rows and results
- */
+
 class Database {
     private $host = DB_HOST;
-    private $user = DB_USER;
+    private $username = DB_USER;
     private $password = DB_PASSWORD;
     private $dbname = DB_NAME;
 
-    private $dbh;
-    private $stmt;
-    private $error;
-    private $errorMode;
+    private $connection;
+    private $statement;
 
-    public function __construct($errorMode = null) {
-        $this->errorMode = $errorMode ?? PDO_ERROR_MODE;
-        $dsn = 'mysql:host='.$this->host.';dbname='.$this->dbname;
+    public function __construct() {
+        $dsn = "mysql:host=$this->host;dbname=$this->dbname;charset=utf8mb4";
+
         $options = [
-            PDO::ATTR_PERSISTENT => true,
-            PDO::ATTR_ERRMODE => $this->errorMode
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
         ];
+
         try {
-            $this->dbh = new PDO($dsn, $this->user, $this->password, $options);
+            $this->connection = new PDO($dsn, $this->username, $this->password, $options);
         } catch (PDOException $e) {
-            $this->error = $e->getMessage();
-            error_log("Database connection error: " . $this->error);
-            throw new Exception("Database connection failed: " . $e->getMessage());
+            die("Database connection failed: " . $e->getMessage());
         }
-        
     }
-    
-    // Fetch all rows from the result set
-    public function fetchAll() {
-        return $this->stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    public function query($sql, $params = []) {
+        $this->statement = $this->connection->prepare($sql);
+        $this->bindValues($params);
+        $this->statement->execute();
+        return $this;
     }
-    
-    // Fetch a single row by ID
-    public function fetchById($table, $id) {
-        $sql = "SELECT * FROM $table WHERE id = :id";
-        $this->query($sql, ['id' => $id]);
-        return $this->stmt->fetch(PDO::FETCH_ASSOC);
+
+    public function select($table, $columns = '*', $conditions = [], $params = []) {
+        $sql = "SELECT $columns FROM $table";
+
+        if (!empty($conditions)) {
+            $sql .= " WHERE " . implode(" AND ", $conditions);
+        }
+
+        return $this->query($sql, $params)->fetchAll();
     }
-    
-    // Insert a new record into the specified table
+
     public function insert($table, $data) {
         $columns = implode(', ', array_keys($data));
         $placeholders = ':' . implode(', :', array_keys($data));
         $sql = "INSERT INTO $table ($columns) VALUES ($placeholders)";
-        $this->query($sql, $data);
+        return $this->query($sql, $data)->getLastInsertId();
     }
 
-    // Update a record in the specified table
-    public function update($table, $id, $data) {
-        $set = '';
-        foreach ($data as $column => $value) {
-            $set .= "$column = :$column, ";
+    public function update($table, $data, $conditions = [], $params = []) {
+        $set = implode(', ', array_map(fn($column) => "$column = :$column", array_keys($data)));
+        $sql = "UPDATE $table SET $set";
+
+        if (!empty($conditions)) {
+            $sql .= " WHERE " . implode(" AND ", $conditions);
         }
-        $set = rtrim($set, ', ');
-        $sql = "UPDATE $table SET $set WHERE id = :id";
-        $data['id'] = $id;
-        $this->query($sql, $data);
-    }
-    
-    // Delete a record from the specified table
-    public function delete($table, $id) {
-        $sql = "DELETE FROM $table WHERE id = :id";
-        $this->query($sql, ['id' => $id]);
-    }
-    
-    // Count the number of records in the specified table
-    public function countRows($table) {
-        $sql = "SELECT COUNT(*) FROM $table";
-        $this->query($sql);
-        return $this->stmt->fetchColumn();
+
+        $params = array_merge($data, $params);
+
+        return $this->query($sql, $params)->getAffectedRowCount();
     }
 
-    // Execute a prepared query and fetch a single row
-    public function fetchOne($sql, $params = []) {
-        $this->query($sql, $params);
-        return $this->stmt->fetch(PDO::FETCH_ASSOC);
-    }
-    
-    // Execute a prepared query and fetch a single column
-    public function fetchColumn($sql, $params = [], $columnIndex = 0) {
-        $this->query($sql, $params);
-        return $this->stmt->fetchColumn($columnIndex);
-    }
-    
-    // Execute a prepared query and fetch a specific column from all rows
-    public function fetchColumnAll($sql, $params = [], $columnIndex = 0) {
-        $this->query($sql, $params);
-        return $this->stmt->fetchAll(PDO::FETCH_COLUMN, $columnIndex);
-    }
-    
-    // Check if a record exists based on a condition
-    public function exists($table, $condition, $params = []) {
-        $sql = "SELECT EXISTS(SELECT 1 FROM $table WHERE $condition LIMIT 1)";
-        $this->query($sql, $params);
-        return $this->stmt->fetchColumn() == 1;
+    public function delete($table, $conditions = [], $params = []) {
+        $sql = "DELETE FROM $table";
+
+        if (!empty($conditions)) {
+            $sql .= " WHERE " . implode(" AND ", $conditions);
+        }
+
+        return $this->query($sql, $params)->getAffectedRowCount();
     }
 
-        // Execute a prepared query
-        public function query($sql, $params = []) {
-            $this->stmt = $this->dbh->prepare($sql);
-            $this->stmt->execute($params);
+    public function fetchAll() {
+        return $this->statement->fetchAll();
+    }
+
+    public function fetch() {
+        return $this->statement->fetch();
+    }
+
+    public function getLastInsertId() {
+        return $this->connection->lastInsertId();
+    }
+
+    public function getAffectedRowCount() {
+        return $this->statement->rowCount();
+    }
+
+    private function bindValues($params) {
+        foreach ($params as $param => $value) {
+            $this->statement->bindValue($param, $value);
         }
-    
-        // Build the parameters
-        public function bind($param, $value, $type = null) {
-            if (is_null($type)) {
-                if (is_int($value)) {
-                    $type = PDO::PARAM_INT;
-                } elseif (is_bool($value)) {
-                    $type = PDO::PARAM_BOOL;
-                } elseif (is_null($value)) {
-                    $type = PDO::PARAM_NULL;
-                } else {
-                    $type = PDO::PARAM_STR;
-                }
-            }
-        
-            $this->stmt->bindValue($param, $value, $type);
-        }
-        
-    
-    // Execute a raw SQL statement
-    public function execute($sql, $params = []) {
-        $this->query($sql, $params);
     }
-    
-    // Begin a transaction
-    public function beginTransaction() {
-        return $this->dbh->beginTransaction();
+
+    // Get a single result as an object
+    public function single() {
+        $this->statement->execute();
+        return $this->statement->fetch(PDO::FETCH_OBJ);
     }
-    
-    // Commit a transaction
-    public function commit() {
-        return $this->dbh->commit();
-    }
-    
-    // Rollback a transaction
-    public function rollback() {
-        return $this->dbh->rollBack();
-    }
-    
+
 }

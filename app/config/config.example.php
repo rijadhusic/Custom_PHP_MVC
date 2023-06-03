@@ -8,6 +8,10 @@ define('DB_NAME', '_YOUR_DB_NAME_');
 // PDO Error Mode
 define('PDO_ERROR_MODE', PDO::ERRMODE_EXCEPTION);
 
+// Password Configuration
+define('USE_STRONG_PASSWORD', false);
+define('MIN_PASSWORD_LENGTH', 6);
+
 // App Configuration
 define('APP_ROOT', dirname(dirname(__FILE__)));
 define('URL_ROOT', '_YOUR_URL_');
@@ -19,3 +23,6 @@ ini_set('display_errors', true);
 
 // Set Default Timezone
 date_default_timezone_set('UTC');
+
+// Set App Version
+define('APP_VERSION','1.0.0');
